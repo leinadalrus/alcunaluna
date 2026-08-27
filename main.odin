@@ -100,10 +100,3 @@ Vector2 :: struct {
 	x: f32,
 	y: f32,
 }
-
-/** Attributions:
-*
-* 'simple_playback.odin:'
-* https://github.com/odin-lang/examples/blob/master/miniaudio/ports/simple_playback.odin
-*
-*/
