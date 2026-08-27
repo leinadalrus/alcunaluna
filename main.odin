@@ -49,6 +49,47 @@ main :: proc() {
 	mini.decoder_uninit(&decoder)
 }
 
+// Event callback functions
+
+initialise_sound :: proc(filepath: string, sound: ^Sound, state: ^AppState) -> int {
+	spec: ^sdl.AudioSpec = nil
+	if spec == nil {
+		spec = new(sdl.AudioSpec)
+	}
+
+	sound.sound_data = nil
+	sound.sound_length = nil
+
+	sound.audio_stream = sdl.CreateAudioStream(spec, spec)^
+	if &sound.audio_stream == nil {
+		fmt.println("Failed to create audio stream")
+		return 1
+	}
+
+	if !sdl.BindAudioStream(app_state.audio_device_id, &sound.audio_stream) {
+		fmt.println("Failed to bind audio stream")
+		return 1
+	}
+	defer sdl.free(spec)
+
+	return 0
+}
+
+form_sine_wave_yt :: proc(
+	amplitude: f32,
+	angular: f32,
+	independent: f32,
+	phase: f32,
+) -> f32 {return amplitude * math.sin(angular * independent + phase)}
+
+form_cosine_wave_xt :: proc(
+	amplitude: f32,
+	angular: f32,
+	independent: f32,
+	phase: f32,
+) -> f32 {return amplitude * math.cos(angular * independent + phase)}
+
+
 data_callback :: proc "c" (device: ^mini.device, output, input: rawptr, frame_count: u32) {
 	decoder := (^mini.decoder)(device.pUserData)
 	if decoder == nil {
@@ -56,6 +97,21 @@ data_callback :: proc "c" (device: ^mini.device, output, input: rawptr, frame_co
 	}
 
 	mini.decoder_read_pcm_frames(decoder, output, u64(frame_count), nil)
+}
+
+// Data structures
+
+app_state := AppState{} // Singleton, can turn into a Dependency Injection design-pattern later if needed
+AppState :: struct {
+	is_running:      i8,
+	window:          ^sdl.Window,
+	renderer:        ^sdl.Renderer,
+	audio_device_id: sdl.AudioDeviceID,
+}
+
+AudioEngine :: struct {
+	trackers:  []Tracker,
+	waveforms: []Waveform,
 }
 
 Waveform :: struct {
