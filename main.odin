@@ -2,6 +2,7 @@ package main
 
 import "base:runtime"
 import "core:fmt"
+import "core:math"
 import "core:os"
 import "core:strings"
 import micro "vendor:microui"
@@ -10,6 +11,39 @@ import sdl "vendor:sdl3"
 
 main :: proc() {
 	fmt.println("Alcuna Luna")
+
+	render_drivers_amount := sdl.GetNumRenderDrivers()
+	for i in i32(0) ..< render_drivers_amount {
+		fmt.println("Render driver: %s", sdl.GetRenderDriver(i))
+	}
+
+	if !sdl.Init(sdl.INIT_VIDEO) {
+		fmt.eprintfln("Couldn't initialize SDL: %s", sdl.GetError())
+		return
+	}
+	defer sdl.Quit()
+
+	if !sdl.CreateWindowAndRenderer(
+		"microui-odin",
+		960,
+		540,
+		sdl.WINDOW_RESIZABLE,
+		&app_state.window,
+		&app_state.renderer,
+	) {
+		fmt.eprintfln("Couldn't create window/renderer: %s", sdl.GetError())
+		return
+	}
+	defer {
+		sdl.DestroyRenderer(app_state.renderer)
+		sdl.DestroyWindow(app_state.window)
+	}
+
+	fmt.printfln("Selected renderer: %s", sdl.GetRendererName(app_state.renderer))
+	if !sdl.SetRenderVSync(app_state.renderer, 1) {
+		fmt.eprintfln("Couldn't set render vsync: %s", sdl.GetError())
+		return
+	}
 
 	arguments := runtime.args__
 	if len(arguments) < 2 {
@@ -60,13 +94,13 @@ initialise_sound :: proc(filepath: string, sound: ^Sound, state: ^AppState) -> i
 	sound.sound_data = nil
 	sound.sound_length = nil
 
-	sound.audio_stream = sdl.CreateAudioStream(spec, spec)^
+	sound.audio_stream = sdl.CreateAudioStream(spec, spec)
 	if &sound.audio_stream == nil {
 		fmt.println("Failed to create audio stream")
 		return 1
 	}
 
-	if !sdl.BindAudioStream(app_state.audio_device_id, &sound.audio_stream) {
+	if !sdl.BindAudioStream(app_state.audio_device_id, sound.audio_stream) {
 		fmt.println("Failed to bind audio stream")
 		return 1
 	}
