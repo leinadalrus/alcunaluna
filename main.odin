@@ -24,7 +24,7 @@ main :: proc() {
 	defer sdl.Quit()
 
 	if !sdl.CreateWindowAndRenderer(
-		"microui-odin",
+		"Alcuna Luna",
 		960,
 		540,
 		sdl.WINDOW_RESIZABLE,
