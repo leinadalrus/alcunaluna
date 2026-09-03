@@ -15,12 +15,12 @@ main :: proc() {
 	obtained_spec: sdl.AudioSpec
 	device_id: sdl.AudioDeviceID
 
-	engine_config: mini.EngineConfig = mini.engine_config_init()
+	engine_config: mini.engine_config = mini.engine_config_init()
 	engine_config.noDevice = true
 	engine_config.channels = 2
 	engine_config.sampleRate = 48000
 
-	result: mini.Result = mini.engine_init(&engine_config, &app_state.audio_engine)
+	result: mini.result = mini.engine_init(&engine_config, &app_state.audio_engine)
 	if result != .SUCCESS {
 		fmt.eprintln("Failed to initialise audio engine.")
 		os.exit(-1)
@@ -90,13 +90,19 @@ form_cosine_wave_xt :: proc(
 ) -> f32 {return amplitude * math.cos(angular * independent + phase)}
 
 
-data_callback :: proc "c" (device: ^mini.device, output, input: rawptr, frame_count: u32) {
-	decoder := (^mini.decoder)(device.pUserData)
-	if decoder == nil {
-		return
-	}
-
-	mini.decoder_read_pcm_frames(decoder, output, u64(frame_count), nil)
+data_callback :: proc "c" (p_user_data: rawptr, p_buffer: rawptr, buffer_size: u32) {
+	frame_buffer_size: u32 =
+		buffer_size /
+		mini.get_bytes_per_frame(
+			mini.format.f32,
+			mini.engine_get_channels(&app_state.audio_engine),
+		)
+	mini.engine_read_pcm_frames(
+		&app_state.audio_engine,
+		p_buffer,
+		cast(u64)(frame_buffer_size),
+		nil,
+	)
 }
 
 // Data structures
@@ -107,7 +113,7 @@ AppState :: struct {
 	window:          ^sdl.Window,
 	renderer:        ^sdl.Renderer,
 	audio_device_id: sdl.AudioDeviceID,
-	audio_engine:    mini.Engine,
+	audio_engine:    mini.engine,
 }
 
 AudioEngine :: struct {
