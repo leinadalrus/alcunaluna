@@ -5,16 +5,25 @@ import "core:fmt"
 import "core:math"
 import "core:os"
 import "core:strings"
-import micro "vendor:microui"
 import mini "vendor:miniaudio"
 import sdl "vendor:sdl3"
 
 main :: proc() {
 	fmt.println("Alcuna Luna")
 
-	render_drivers_amount := sdl.GetNumRenderDrivers()
-	for i in i32(0) ..< render_drivers_amount {
-		fmt.println("Render driver: %s", sdl.GetRenderDriver(i))
+	audio_spec: sdl.AudioSpec
+	obtained_spec: sdl.AudioSpec
+	device_id: sdl.AudioDeviceID
+
+	engine_config: mini.EngineConfig = mini.engine_config_init()
+	engine_config.noDevice = true
+	engine_config.channels = 2
+	engine_config.sampleRate = 48000
+
+	result: mini.Result = mini.engine_init(&engine_config, &app_state.audio_engine)
+	if result != .SUCCESS {
+		fmt.eprintln("Failed to initialise audio engine.")
+		os.exit(-1)
 	}
 
 	if !sdl.Init(sdl.INIT_VIDEO) {
@@ -38,49 +47,6 @@ main :: proc() {
 		sdl.DestroyRenderer(app_state.renderer)
 		sdl.DestroyWindow(app_state.window)
 	}
-
-	fmt.printfln("Selected renderer: %s", sdl.GetRendererName(app_state.renderer))
-	if !sdl.SetRenderVSync(app_state.renderer, 1) {
-		fmt.eprintfln("Couldn't set render vsync: %s", sdl.GetError())
-		return
-	}
-
-	arguments := runtime.args__
-	if len(arguments) < 2 {
-		fmt.eprintln("No input file ...")
-		os.exit(-1)
-	}
-
-	decoder: mini.decoder
-	result := mini.decoder_init_file(arguments[1], nil, &decoder)
-	if result != .SUCCESS {
-		fmt.eprintln("Could not load file: %s", arguments[1])
-		os.exit(-2)
-	}
-
-	device_config := mini.device_config_init(.playback)
-	device_config.playback.format = decoder.outputFormat
-	device_config.playback.channels = decoder.outputChannels
-	device_config.sampleRate = decoder.outputSampleRate
-	device_config.dataCallback = data_callback
-	device_config.pUserData = &decoder
-
-	device: mini.device
-	if mini.device_init(nil, &device_config, &device) != .SUCCESS {
-		fmt.eprintln("Failed to open playback device.")
-		mini.decoder_uninit(&decoder)
-		os.exit(-3)
-	}
-
-	if mini.device_start(&device) != .SUCCESS {
-		fmt.eprintln("Failed to start playback device.")
-		mini.device_uninit(&device)
-		mini.decoder_uninit(&decoder)
-		os.exit(-4)
-	}
-
-	mini.device_uninit(&device)
-	mini.decoder_uninit(&decoder)
 }
 
 // Event callback functions
@@ -141,6 +107,7 @@ AppState :: struct {
 	window:          ^sdl.Window,
 	renderer:        ^sdl.Renderer,
 	audio_device_id: sdl.AudioDeviceID,
+	audio_engine:    mini.Engine,
 }
 
 AudioEngine :: struct {
