@@ -8,45 +8,49 @@ import "core:strings"
 import mini "vendor:miniaudio"
 import sdl "vendor:sdl3"
 
+CHANNELS :: 2
+SAMPLE_RATE :: 48000
+
 main :: proc() {
 	fmt.println("Alcuna Luna")
 
-	audio_spec: sdl.AudioSpec
+	desired_spec: sdl.AudioSpec
 	obtained_spec: sdl.AudioSpec
 	device_id: sdl.AudioDeviceID
 
 	engine_config: mini.engine_config = mini.engine_config_init()
-	engine_config.noDevice = true
-	engine_config.channels = 2
-	engine_config.sampleRate = 48000
+	engine_config.noDevice = false
+	engine_config.channels = CHANNELS
+	engine_config.sampleRate = SAMPLE_RATE
 
 	result: mini.result = mini.engine_init(&engine_config, &app_state.audio_engine)
 	if result != .SUCCESS {
-		fmt.eprintln("Failed to initialise audio engine.")
-		os.exit(-1)
+		panic("Failed to initialise audio engine.")
 	}
+	defer mini.engine_uninit(&app_state.audio_engine)
 
-	if !sdl.Init(sdl.INIT_VIDEO) {
-		fmt.eprintfln("Couldn't initialize SDL: %s", sdl.GetError())
-		return
+	if (!sdl.InitSubSystem(sdl.INIT_AUDIO)) {
+		panic("Failed to initialise SDL audio subsystem.")
 	}
-	defer sdl.Quit()
+	defer sdl.QuitSubSystem(sdl.INIT_AUDIO)
 
-	if !sdl.CreateWindowAndRenderer(
-		"Alcuna Luna",
-		960,
-		540,
-		sdl.WINDOW_RESIZABLE,
-		&app_state.window,
-		&app_state.renderer,
-	) {
-		fmt.eprintfln("Couldn't create window/renderer: %s", sdl.GetError())
-		return
+	desired_sample_rate := mini.engine_get_sample_rate(&app_state.audio_engine)
+	desired_spec.freq = cast(i32)desired_sample_rate
+	desired_spec.format = .F32
+
+	desired_channels := mini.engine_get_channels(&app_state.audio_engine)
+	desired_spec.channels = cast(i32)desired_channels
+
+	device_id = sdl.OpenAudioDevice(device_id, &desired_spec)
+	if device_id == 0 {
+		panic("Failed to open audio device.")
 	}
-	defer {
-		sdl.DestroyRenderer(app_state.renderer)
-		sdl.DestroyWindow(app_state.window)
-	}
+	defer sdl.CloseAudioDevice(device_id)
+	sdl.PauseAudioDevice(device_id)
+
+	// Game update loop
+
+	for {}
 }
 
 // Event callback functions
@@ -88,7 +92,6 @@ form_cosine_wave_xt :: proc(
 	independent: f32,
 	phase: f32,
 ) -> f32 {return amplitude * math.cos(angular * independent + phase)}
-
 
 data_callback :: proc "c" (p_user_data: rawptr, p_buffer: rawptr, buffer_size: u32) {
 	frame_buffer_size: u32 =
