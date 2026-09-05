@@ -1,10 +1,7 @@
 package main
 
-import "base:runtime"
 import "core:fmt"
 import "core:math"
-import "core:os"
-import "core:strings"
 import mini "vendor:miniaudio"
 import sdl "vendor:sdl3"
 
@@ -29,7 +26,7 @@ main :: proc() {
 	}
 	defer mini.engine_uninit(&app_state.audio_engine)
 
-	if (!sdl.InitSubSystem(sdl.INIT_AUDIO)) {
+	if !sdl.InitSubSystem(sdl.INIT_AUDIO) {
 		panic("Failed to initialise SDL audio subsystem.")
 	}
 	defer sdl.QuitSubSystem(sdl.INIT_AUDIO)
